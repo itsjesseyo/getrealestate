@@ -9,7 +9,8 @@ const time = require('dayjs')
 
 const env = require('node-env-file');
 env(__dirname + '/.env');
-const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT, PRODUCTION} = process.env
+const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT, PRODUCTION, VERBOSE, SHOULD_LIMIT} = process.env
+
 
 const fs = require('fs');
 const path = require('path');
@@ -45,6 +46,12 @@ const COLLECTION_ID = '62942eb0a4f128287cbc'
 
 
 let batchTime = 0
+
+const vprint = (message) => {
+  if(VERBOSE === 'true'){
+    print(message)
+  }
+}
 
 
 /* This code goes to the below URL and fetches the most recent houses from utahrealestate */
@@ -250,23 +257,46 @@ function pause(ms) {
 // the main process
 const processNew = async () => {
   batchTime = time().millisecond(0).second(0).minute(0).unix()
-  print(time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss'))
+  vprint(time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss'))
+
+  const report = {
+    created: 0,
+    existing: 0,
+  }
   // get a list of houses, 
   const houseCodes = await getLatestHouses()
   // but not much data in it so go to each page seprately
   const listingUrls = houseCodes.map(listing => `${rootUrl}${listing.listno}`)
-  // const max = 4
-  // let index = 0
+  vprint(`${listingUrls.length} houses to process`)
+  const max = 2
+  let index = 0
   for(const url of listingUrls){
-    // if(index < max){
-      // processHouse uses scrape-it to get the data
+    if(SHOULD_LIMIT === 'true'){
+      if(index < max){
+        // processHouse uses scrape-it to get the data
+        const house = await processHouse(url)
+        // print(house)
+        const result = await addHouseIfNew(house)
+        if(result){
+          report.created = report.created + 1
+        }else{
+          report.existing = report.existing + 1
+        }
+        await pause(1000) // be a good citizena nd avoid being banned
+        index++
+      }
+    }else{
       const house = await processHouse(url)
-      // print(house)
-      await addHouseIfNew(house)
+      const result = await addHouseIfNew(house)
+      if(result){
+        report.created = report.created + 1
+      }else{
+        report.existing = report.existing + 1
+      }
       await pause(1000) // be a good citizena nd avoid being banned
-      // index++
-    // }
+    }
   }
+  print(`created : ${report.created}, existing: ${report.existing}`)
 }
 
 const getHouseEntry = async (mls) => {
@@ -286,12 +316,15 @@ const createEntry = async (house) => {
 
 const addHouseIfNew = async (house) => {
   const entry = await getHouseEntry(house.mls)
+  let isNew = false
   if(entry === null){
-    print(`creating entry : ${house.mls}`)
+    vprint(`creating entry : ${house.mls}`)
     const newHouse = await createEntry(house)
+    isNew = true
   }else{
-    print(`entry exists ${house.mls}`)
+    vprint(`entry exists ${house.mls}`)
   }
+  return isNew
 }
 processNew()
 
