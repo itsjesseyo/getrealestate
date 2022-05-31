@@ -265,3 +265,4 @@ Temporary Items
 .env
 .DS_Store
 node_modules/
+app.log

@@ -1,7 +1,7 @@
 const scrapeIt = require("scrape-it") // the webscraper
 const axios = require('axios') // used to make url requests
 const fetch  = require('node-fetch') // also used for web requests because i had issues
-const print = console.log
+let print = console.log
 
 const schedule = require('node-schedule')
 
@@ -9,7 +9,29 @@ const time = require('dayjs')
 
 const env = require('node-env-file');
 env(__dirname + '/.env');
-const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT} = process.env
+const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT, PRODUCTION} = process.env
+
+const fs = require('fs');
+const path = require('path');
+const winston = require('winston');
+
+const filePath = path.join(__dirname, 'app.log');
+const stream = fs.createWriteStream(filePath);
+
+const logger = winston.createLogger({
+  transports: [
+    new winston.transports.Stream({ stream })
+  ]
+});
+
+const log = async(message) => {
+  logger.log({ level: 'info', message })
+}
+
+if(PRODUCTION==='true') {
+  print = log
+}
+
 
 const sdk = require('node-appwrite');
 const {Query} = sdk
@@ -228,7 +250,7 @@ function pause(ms) {
 // the main process
 const processNew = async () => {
   batchTime = time().millisecond(0).second(0).minute(0).unix()
-  // print(time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss'))
+  print(time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss'))
   // get a list of houses, 
   const houseCodes = await getLatestHouses()
   // but not much data in it so go to each page seprately
@@ -265,11 +287,10 @@ const createEntry = async (house) => {
 const addHouseIfNew = async (house) => {
   const entry = await getHouseEntry(house.mls)
   if(entry === null){
-    print('creating...')
+    print(`creating entry : ${house.mls}`)
     const newHouse = await createEntry(house)
-    print(newHouse.mls)
   }else{
-    print('entry exists', house.mls)
+    print(`entry exists ${house.mls}`)
   }
 }
 processNew()
@@ -278,6 +299,6 @@ const rule = new schedule.RecurrenceRule();
 rule.hour = [0, new schedule.Range(6, 18, 3)];
 
 const job = schedule.scheduleJob(rule, function(){
-  console.log('Running job: ', time().format('HH:mm:ss'))
+  print('Running job: ', time().format('HH:mm:ss'))
   processNew()
 });
