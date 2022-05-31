@@ -3,6 +3,28 @@ const axios = require('axios') // used to make url requests
 const fetch  = require('node-fetch') // also used for web requests because i had issues
 const print = console.log
 
+const schedule = require('node-schedule')
+
+const time = require('dayjs')
+
+const env = require('node-env-file');
+env(__dirname + '/.env');
+const {APPWRITE_PROJECT, APPWRITE_KEY} = process.env
+
+const sdk = require('node-appwrite');
+const {Query} = sdk
+const client = new sdk.Client();
+client
+    .setEndpoint('http://147.182.196.214/v1') // Your API Endpoint
+    .setProject(APPWRITE_PROJECT) // Your project ID
+    .setKey(APPWRITE_KEY); // Your secret API key
+let db = new sdk.Database(client);
+const COLLECTION_ID = '62942eb0a4f128287cbc'
+
+
+let batchTime = 0
+
+
 /* This code goes to the below URL and fetches the most recent houses from utahrealestate */
 // the bottom lines (processNew) is what actually launches the process
 
@@ -30,7 +52,7 @@ const breakoutSqFoot = (house) => {
             feature = feature.replace(' sq. ft.', '')
             const fragments = feature.split(': ')
             if(fragments[0] !== "Total"){
-                house[fragments[0]] = Number(fragments[1])
+                house[fragments[0].replace(" ", '-')] = Number(fragments[1])
             }
         }
     }
@@ -56,6 +78,14 @@ const processHouse = async (url) => {
     const house = await scrapeIt.scrapeHTML(response.data, {
         address_1: ".prop___overview h2",
         address_2: ".prop___overview p",
+        zipcode: {
+          selector: ".prop___overview p",
+          convert: x => Number(x.split(' ').pop())
+        },
+        city: {
+          selector: ".prop___overview p",
+          convert: x => x.split(', UT').shift()
+        },
         map_url: {
             selector: ".prop___adress___wrap li a",
             attr: "href"
@@ -128,6 +158,7 @@ const processHouse = async (url) => {
 
     house["acres"] = extractFeatureByName("acres", house.features)
     breakoutSqFoot(house)
+    house.url = url
     // addRoomCount(house)
     return house
 }
@@ -196,15 +227,57 @@ function pause(ms) {
 
 // the main process
 const processNew = async () => {
-    // get a list of houses, 
-    const houseCodes = await getLatestHouses()
-    // but not much data in it so go to each page seprately
-    const listingUrls = houseCodes.map(listing => `${rootUrl}${listing.listno}`)
-    for(const url of listingUrls){
-        // processHouse uses scrape-it to get the data
-        const house = await processHouse(url)
-        print(house)
-        await pause(1000) // be a good citizena nd avoid being banned
-    }
+  batchTime = time().millisecond(0).second(0).minute(0).unix()
+  // print(time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss'))
+  // get a list of houses, 
+  const houseCodes = await getLatestHouses()
+  // but not much data in it so go to each page seprately
+  const listingUrls = houseCodes.map(listing => `${rootUrl}${listing.listno}`)
+  // const max = 4
+  // let index = 0
+  for(const url of listingUrls){
+    // if(index < max){
+      // processHouse uses scrape-it to get the data
+      const house = await processHouse(url)
+      // print(house)
+      await addHouseIfNew(house)
+      await pause(1000) // be a good citizena nd avoid being banned
+      // index++
+    // }
+  }
+}
+
+const getHouseEntry = async (mls) => {
+  let entry = await db.listDocuments(COLLECTION_ID, [
+    Query.equal('mls', mls)
+  ], 1);
+  return entry.total === 0 ? null : entry
+}
+
+const createEntry = async (house) => {
+  house.images = house.images.map(item => item.image)
+  house.batch = batchTime
+  house.created = time().unix()
+  const newHouse = await db.createDocument(COLLECTION_ID, 'unique()', house);
+  return newHouse
+}
+
+const addHouseIfNew = async (house) => {
+  const entry = await getHouseEntry(house.mls)
+  if(entry === null){
+    print('creating...')
+    const newHouse = await createEntry(house)
+    print(newHouse.mls)
+  }else{
+    print('entry exists', house.mls)
+  }
 }
 processNew()
+
+const rule = new schedule.RecurrenceRule();
+rule.hour = [0, new schedule.Range(6, 18, 3)];
+
+const job = schedule.scheduleJob(rule, function(){
+  console.log('Running job: ', time().format('HH:mm:ss'))
+  processNew()
+});
