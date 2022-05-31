@@ -9,13 +9,13 @@ const time = require('dayjs')
 
 const env = require('node-env-file');
 env(__dirname + '/.env');
-const {APPWRITE_PROJECT, APPWRITE_KEY} = process.env
+const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT} = process.env
 
 const sdk = require('node-appwrite');
 const {Query} = sdk
 const client = new sdk.Client();
 client
-    .setEndpoint('http://147.182.196.214/v1') // Your API Endpoint
+    .setEndpoint(APPWRITE_ENDPOINT) // Your API Endpoint
     .setProject(APPWRITE_PROJECT) // Your project ID
     .setKey(APPWRITE_KEY); // Your secret API key
 let db = new sdk.Database(client);
