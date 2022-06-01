@@ -6,6 +6,10 @@ let print = console.log
 const schedule = require('node-schedule')
 
 const time = require('dayjs')
+var utc = require('dayjs/plugin/utc')
+var timezone = require('dayjs/plugin/timezone')
+time.extend(utc)
+time.extend(timezone)
 
 const env = require('node-env-file');
 env(__dirname + '/.env');
@@ -256,8 +260,8 @@ function pause(ms) {
 
 // the main process
 const processNew = async () => {
-  batchTime = time().millisecond(0).second(0).minute(0).unix()
-  print(`new batch : ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')} : ${time().format('HH:mm:ss')}`)
+  batchTime = time().tz("America/Denver").millisecond(0).second(0).minute(0).unix()
+  print(`new batch : ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')} : ${time().tz("America/Denver").format('HH:mm:ss')}`)
 
   const report = {
     created: 0,
@@ -296,7 +300,7 @@ const processNew = async () => {
       await pause(1000) // be a good citizena nd avoid being banned
     }
   }
-  print(`created : ${report.created}, existing: ${report.existing}, ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')}`)
+  print(`created : ${report.created}, existing: ${report.existing}, ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')} : ${time().tz("America/Denver").format('HH:mm:ss')}`)
 }
 
 const getHouseEntry = async (mls) => {
@@ -309,7 +313,7 @@ const getHouseEntry = async (mls) => {
 const createEntry = async (house) => {
   house.images = house.images.map(item => item.image)
   house.batch = batchTime
-  house.created = time().unix()
+  house.created = time().tz("America/Denver").unix()
   const newHouse = await db.createDocument(COLLECTION_ID, 'unique()', house);
   return newHouse
 }
@@ -331,8 +335,9 @@ processNew()
 const rule = new schedule.RecurrenceRule();
 rule.hour = [0, new schedule.Range(6, 19, 3)];
 rule.minute = 0
+rule.tz = 'America/Denver';
 
 const job = schedule.scheduleJob(rule, function(){
-  print(`Running job: ${time().format('HH:mm:ss')}`)
+  print(`Running job: ${time().tz("America/Denver").format('HH:mm:ss')}`)
   processNew()
 });
