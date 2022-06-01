@@ -257,7 +257,7 @@ function pause(ms) {
 // the main process
 const processNew = async () => {
   batchTime = time().millisecond(0).second(0).minute(0).unix()
-  vprint(time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss'))
+  print(`new batch : ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')} : ${time().format('HH:mm:ss')}`)
 
   const report = {
     created: 0,
@@ -267,7 +267,7 @@ const processNew = async () => {
   const houseCodes = await getLatestHouses()
   // but not much data in it so go to each page seprately
   const listingUrls = houseCodes.map(listing => `${rootUrl}${listing.listno}`)
-  vprint(`${listingUrls.length} houses to process`)
+  print(`${listingUrls.length} houses to process`)
   const max = 2
   let index = 0
   for(const url of listingUrls){
@@ -296,7 +296,7 @@ const processNew = async () => {
       await pause(1000) // be a good citizena nd avoid being banned
     }
   }
-  print(`created : ${report.created}, existing: ${report.existing}`)
+  print(`created : ${report.created}, existing: ${report.existing}, ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')}`)
 }
 
 const getHouseEntry = async (mls) => {
@@ -329,9 +329,10 @@ const addHouseIfNew = async (house) => {
 processNew()
 
 const rule = new schedule.RecurrenceRule();
-rule.hour = [0, new schedule.Range(6, 18, 3)];
+rule.hour = [0, new schedule.Range(6, 19, 3)];
+rule.minute = 0
 
 const job = schedule.scheduleJob(rule, function(){
-  print('Running job: ', time().format('HH:mm:ss'))
+  print(`Running job: ${time().format('HH:mm:ss')}`)
   processNew()
 });
