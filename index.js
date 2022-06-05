@@ -39,6 +39,7 @@ if(PRODUCTION==='true') {
 
 
 const sdk = require('node-appwrite');
+const { isTypedArray } = require("util/types")
 const {Query} = sdk
 const client = new sdk.Client();
 client
@@ -297,7 +298,7 @@ const processNew = async () => {
       }else{
         report.existing = report.existing + 1
       }
-      await pause(1000) // be a good citizena nd avoid being banned
+      await pause(500) // be a good citizena nd avoid being banned
     }
   }
   print(`created : ${report.created}, existing: ${report.existing}, ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')} : ${time().tz("America/Denver").format('HH:mm:ss')}`)
@@ -307,7 +308,7 @@ const getHouseEntry = async (mls) => {
   let entry = await db.listDocuments(COLLECTION_ID, [
     Query.equal('mls', mls)
   ], 1);
-  return entry.total === 0 ? null : entry
+  return entry.total === 0 ? null : entry.documents[0]
 }
 
 const createEntry = async (house) => {
@@ -326,10 +327,52 @@ const addHouseIfNew = async (house) => {
     const newHouse = await createEntry(house)
     isNew = true
   }else{
-    vprint(`entry exists ${house.mls}`)
+    vprint(`entry exists ${entry.$id}: ${house.mls}: ${house.status}, ${entry.status}`)
+    await recordStatusEvent(house, entry)
   }
   return isNew
 }
+
+const recordStatusEvent = async (house, entry) => {
+  let event = null
+  if(entry.status === 'Active' && house.status !== 'Active'){
+    event = 'sold'
+  }else if( entry.status !== 'Active' && house.status === 'Active'){
+    event = 'available'
+  }
+
+  const today = time().tz("America/Denver").millisecond(0).second(0).minute(0)
+  const deltaTime = today.diff(time.unix(entry.batch), 'days')
+
+  if(event != null){
+    vprint(`${entry.mls}: ${event}: ${deltaTime}`)
+    const statusEvent = {
+      mls: house.mls,
+      currentStatus: house.status,
+      previousStatus: entry.status,
+      event: event,
+      date: today.unix(),
+      deltaTime: deltaTime,
+    }
+    await db.createDocument('statusEvents','unique()',  statusEvent)
+    await db.updateDocument(COLLECTION_ID, entry.$id, {status:house.status})
+  }
+  if(entry.price !== house.price){
+    vprint(`price change ${entry.price} / ${house.price} : ${deltaTime}`)
+    const event = entry.price > house.price ? 'price decrease' : 'price increase'
+    const statusEvent = {
+      mls: house.mls,
+      currentStatus: house.status,
+      previousStatus: entry.status,
+      event: event,
+      date: today.unix(),
+      deltaTime: deltaTime,
+    }
+    await db.createDocument('statusEvents','unique()',  statusEvent)
+    await db.updateDocument(COLLECTION_ID, entry.$id, {price:house.price})
+  }
+}
+
 processNew()
 
 const rule = new schedule.RecurrenceRule();
