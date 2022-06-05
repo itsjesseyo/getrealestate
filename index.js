@@ -362,8 +362,8 @@ const recordStatusEvent = async (house, entry) => {
     const event = entry.price > house.price ? 'price decrease' : 'price increase'
     const statusEvent = {
       mls: house.mls,
-      currentStatus: house.status,
-      previousStatus: entry.status,
+      currentStatus: house.price,
+      previousStatus: entry.price,
       event: event,
       date: today.unix(),
       deltaTime: deltaTime,
