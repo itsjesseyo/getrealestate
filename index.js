@@ -13,7 +13,7 @@ time.extend(timezone)
 
 const env = require('node-env-file');
 env(__dirname + '/.env');
-const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT, PRODUCTION, VERBOSE, SHOULD_LIMIT} = process.env
+const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT, PRODUCTION, VERBOSE, SHOULD_LIMIT, DEPLOY_HOOK} = process.env
 
 
 const fs = require('fs');
@@ -302,6 +302,9 @@ const processNew = async () => {
     }
   }
   print(`created : ${report.created}, existing: ${report.existing}, ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')} : ${time().tz("America/Denver").format('HH:mm:ss')}`)
+  print(DEPLOY_HOOK)
+  const res = await axios.post(DEPLOY_HOOK);
+  print(res)
 }
 
 const getHouseEntry = async (mls) => {
