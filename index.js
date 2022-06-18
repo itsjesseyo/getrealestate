@@ -13,7 +13,7 @@ time.extend(timezone)
 
 const env = require('node-env-file');
 env(__dirname + '/.env');
-const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT, PRODUCTION, VERBOSE, SHOULD_LIMIT} = process.env
+const {APPWRITE_PROJECT, APPWRITE_KEY, APPWRITE_ENDPOINT, PRODUCTION, VERBOSE, SHOULD_LIMIT, DEPLOY_HOOK} = process.env
 
 
 const fs = require('fs');
@@ -215,7 +215,7 @@ const getLatestHouses = async () => {
           "Referer": "https://www.utahrealestate.com/search/map.search",
           "Referrer-Policy": "strict-origin-when-cross-origin"
         },
-        "body": "param=geometry&value=POLYGON%28%28-112.30373041015639%2040.13236442187599%2C-112.30373041015639%2040.870626292919155%2C-111.57313958984375%2040.870626292919155%2C-111.57313958984375%2040.13236442187599%2C-112.30373041015639%2040.13236442187599%29%29&chain=saveLocation,criteriaAndCountAction,mapInlineResultsAction&all=1&accuracy=&geocoded=&state=&box=&htype=&lat=&lng=&selected_listno=&type=1&geolocation=&listprice1=200000&listprice2=600000&tot_bed1=&tot_bath1=&stat=1&stat=7&status=1%2C7&opens=&o_env_certification=32&proptype=1&style=&o_style=4&tot_sqf1=&dim_acres1=&yearblt1=&cap_garage1=&o_has_solar=1&o_seniorcommunity=1&o_has_hoa=1&o_accessibility=32&loc=&accr=&op=16777216&advanced_search=0&param_reset=housenum,dir_pre,street,streettype,dir_post,city,county_code,zip,area,subdivision,quadrant,unitnbr1,unitnbr2,geometry,coord_ns1,coord_ns2,coord_ew1,coord_ew2,housenum,o_dir_pre,o_street,o_streettype,o_dir_post,o_city,o_county_code,o_zip,o_area,o_subdivision,o_quadrant,o_unitnbr1,o_unitnbr2,o_geometry,o_coord_ns1,o_coord_ns2,o_coord_ew1,o_coord_ew2",
+        "body": "param=geometry&value=POLYGON%28%28-112.30373041015639%2040.13236442187599%2C-112.30373041015639%2040.870626292919155%2C-111.57313958984375%2040.870626292919155%2C-111.57313958984375%2040.13236442187599%2C-112.30373041015639%2040.13236442187599%29%29&chain=saveLocation,criteriaAndCountAction,mapInlineResultsAction&all=1&accuracy=&geocoded=&state=&box=&htype=&lat=&lng=&selected_listno=&type=1&geolocation=&listprice1=200000&listprice2=850000&tot_bed1=&tot_bath1=&stat=1&stat=7&status=1%2C7&opens=&o_env_certification=32&proptype=1&style=&o_style=4&tot_sqf1=&dim_acres1=&yearblt1=&cap_garage1=&o_has_solar=1&o_seniorcommunity=1&o_has_hoa=1&o_accessibility=32&loc=&accr=&op=16777216&advanced_search=0&param_reset=housenum,dir_pre,street,streettype,dir_post,city,county_code,zip,area,subdivision,quadrant,unitnbr1,unitnbr2,geometry,coord_ns1,coord_ns2,coord_ew1,coord_ew2,housenum,o_dir_pre,o_street,o_streettype,o_dir_post,o_city,o_county_code,o_zip,o_area,o_subdivision,o_quadrant,o_unitnbr1,o_unitnbr2,o_geometry,o_coord_ns1,o_coord_ns2,o_coord_ew1,o_coord_ew2",
         "method": "POST"
       });
     let { listing_data, page_count } = await response.json()
@@ -302,6 +302,9 @@ const processNew = async () => {
     }
   }
   print(`created : ${report.created}, existing: ${report.existing}, ${time.unix(batchTime).format('MM/DD/YYYY HH:mm:ss')} : ${time().tz("America/Denver").format('HH:mm:ss')}`)
+  print(DEPLOY_HOOK)
+  const res = await axios.post(DEPLOY_HOOK);
+  print(res)
 }
 
 const getHouseEntry = async (mls) => {
