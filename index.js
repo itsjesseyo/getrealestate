@@ -332,8 +332,16 @@ const addHouseIfNew = async (house) => {
   }else{
     vprint(`entry exists ${entry.$id}: ${house.mls}: ${house.status}, ${entry.status}`)
     await recordStatusEvent(house, entry)
+    await updateDaysListed(house, entry)
   }
   return isNew
+}
+
+const updateDaysListed = async(house, entry) => {
+  if(house.days_listed !== entry.days_listed){
+    console.log(`from ${entry.days_listed} to ${house.days_listed}`)
+    await db.updateDocument(COLLECTION_ID, entry.$id, {days_listed:house.days_listed})
+  }
 }
 
 const recordStatusEvent = async (house, entry) => {
